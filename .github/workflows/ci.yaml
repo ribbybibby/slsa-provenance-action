@@ -119,11 +119,34 @@ jobs:
           echo "::set-output name=container_tags::$(make container-tags CONTAINER_DIGEST="${CONTAINER_DIGEST}" | paste -s -d ',' -)"
           echo "::set-output name=container_repos::$(echo "[$(make container-repos CONTAINER_DIGEST="${CONTAINER_DIGEST}" | paste -s -d ',' -)]")"
 
+      - name: Debug outputs
+        run: |
+          echo ${{ steps.container_info.outputs.container_digest }}
+          echo ${{ steps.container_info.outputs.container_tags }}
+          echo ${{ steps.container_info.outputs.container_repos }}
+          echo ${{ fromJSON(steps.container_info.outputs.container_digest) }}
+          echo ${{ fromJSON(steps.container_info.outputs.container_tags) }}
+          echo ${{ fromJSON(steps.container_info.outputs.container_repos) }}
+
       - name: Logout from Container registries
         if: ${{ always() }}
         run: |
           docker logout
           docker logout ghcr.io
+
+  debug-output:
+    name: debug-output
+    needs: [release]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Debug outputs
+        run: |
+          echo ${{ needs.release.outputs.container_digest }}
+          echo ${{ needs.release.outputs.container_tags }}
+          echo ${{ needs.release.outputs.container_repos }}
+          echo ${{ fromJSON(needs.release.outputs.container_digest) }}
+          echo ${{ fromJSON(needs.release.outputs.container_tags) }}
+          echo ${{ fromJSON(needs.release.outputs.container_repos) }}
 
   container-provenance:
     name: container-provenance

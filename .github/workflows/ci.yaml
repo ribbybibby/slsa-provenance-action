@@ -114,9 +114,10 @@ jobs:
         id: container_info
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          echo "::set-output name=container_digest::$(make container-digest GITHUB_REF=${{ github.ref_name }})"
-          echo "::set-output name=container_tags::$(make container-tags CONTAINER_DIGEST=${{ steps.container_info.outputs.container_digest }} | paste -s -d ',' -)"
-          echo "::set-output name=container_repos::$(echo "[$(make container-repos CONTAINER_DIGEST=${{ steps.container_info.outputs.container_digest }} | paste -s -d ',' -)]")"
+          export CONTAINER_DIGEST=$(make container-digest GITHUB_REF=${{ github.ref_name }})
+          echo "::set-output name=container_digest::$CONTAINER_DIGEST"
+          echo "::set-output name=container_tags::$(make container-tags CONTAINER_DIGEST="${CONTAINER_DIGEST}" | paste -s -d ',' -)"
+          echo "::set-output name=container_repos::$(echo "[$(make container-repos CONTAINER_DIGEST="${CONTAINER_DIGEST}" | paste -s -d ',' -)]")"
 
       - name: Logout from Container registries
         if: ${{ always() }}

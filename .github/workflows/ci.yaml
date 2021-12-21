@@ -66,7 +66,7 @@ jobs:
     outputs:
       container_digest: ${{ steps.container_info.outputs.container_digest }}
       container_tags: ${{ steps.container_info.outputs.container_tags }}
-      container_dcontainer_reposigest: ${{ steps.container_info.outputs.container_repos }}
+      container_repos: ${{ steps.container_info.outputs.container_repos }}
 
     runs-on: ubuntu-20.04
 
@@ -149,10 +149,7 @@ jobs:
         with:
           command: generate
           subcommand: container
-          arguments: |
-            --digest ${{ needs.release.outputs.container_digest }} \
-            --tags ${{ needs.release.outputs.container_tags }} \
-            --repositories ${{ matrix.repo }}
+          arguments: --digest ${{ needs.release.outputs.container_digest }} --tags ${{ needs.release.outputs.container_tags }} --repositories ${{ matrix.repo }}
 
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -169,9 +166,6 @@ jobs:
         with:
           command: generate
           subcommand: github-release
-          arguments: |
-            --artifact-path release-assets \
-            --output-path provenance.json \
-            --tag-name ${{ github.ref_name }}
+          arguments: --artifact-path release-assets --output-path provenance.json --tag-name ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"

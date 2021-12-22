@@ -50,12 +50,8 @@ func TestProvenenaceGitHubRelease(t *testing.T) {
 	output, err := executeCommand(cli.GitHubRelease(),
 		"--artifact-path",
 		artifactPath,
-		"--github-context",
-		githubContext,
 		"--output-path",
 		provenanceFile,
-		"--runner-context",
-		runnerContext,
 		"--tag-name",
 		"v0.0.0-generate-test",
 	)

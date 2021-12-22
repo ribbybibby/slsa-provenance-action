@@ -25,14 +25,9 @@ func (e *Environment) GenerateProvenanceStatement(ctx context.Context, artifactP
 
 	repoURI := "https://github.com/" + e.Context.Repository
 
-	event := AnyEvent{}
-	if err := json.Unmarshal(e.Context.Event, &event); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal github context event json: %w", err)
-	}
-
 	stmt := intoto.SLSAProvenanceStatement(
 		intoto.WithSubject(subjects),
-		intoto.WithBuilder(builderID(repoURI)),
+		intoto.WithBuilder(e.BuilderID()),
 		// NOTE: Re-runs are not uniquely identified and can cause run ID collisions.
 		intoto.WithMetadata(fmt.Sprintf("%s/actions/runs/%s", repoURI, e.Context.RunID)),
 		// NOTE: This is inexact as multiple workflows in a repo can have the same name.
@@ -41,7 +36,7 @@ func (e *Environment) GenerateProvenanceStatement(ctx context.Context, artifactP
 			BuildType,
 			e.Context.Workflow,
 			nil,
-			event.Inputs,
+			e.Context.Event.Inputs,
 			[]intoto.Item{
 				{URI: "git+" + repoURI, Digest: intoto.DigestSet{"sha1": e.Context.SHA}},
 			},
@@ -77,15 +72,12 @@ type ReleaseEnvironment struct {
 }
 
 // NewReleaseEnvironment creates a new instance of ReleaseEnvironment with the given tagName and provenanceClient
-func NewReleaseEnvironment(gh Context, runner RunnerContext, tagName string, rc *ReleaseClient) *ReleaseEnvironment {
+func NewReleaseEnvironment(env *Environment, tagName string, rc *ReleaseClient) *ReleaseEnvironment {
 	return &ReleaseEnvironment{
-		Environment: &Environment{
-			Context: &gh,
-			Runner:  &runner,
-		},
-		rc:        rc,
-		tagName:   tagName,
-		releaseID: 0,
+		Environment: env,
+		rc:          rc,
+		tagName:     tagName,
+		releaseID:   0,
 	}
 }
 
@@ -107,7 +99,7 @@ func (e *ReleaseEnvironment) GenerateProvenanceStatement(ctx context.Context, ar
 		return nil, errors.New("artifactPath has to be an empty directory")
 	}
 
-	owner := e.Context.RepositoryOwner
+	owner := repositoryOwner(e.Context.Repository)
 	repo := repositoryName(e.Context.Repository)
 
 	releaseID, err := e.GetReleaseID(ctx, e.tagName)
@@ -135,7 +127,7 @@ func (e *ReleaseEnvironment) PersistProvenanceStatement(ctx context.Context, stm
 	}
 	defer stmtFile.Close()
 
-	owner := e.Context.RepositoryOwner
+	owner := repositoryOwner(e.Context.Repository)
 	repo := repositoryName(e.Context.Repository)
 	_, err = e.rc.AddProvenanceToRelease(ctx, owner, repo, e.releaseID, stmtFile)
 	if err != nil {
@@ -147,7 +139,7 @@ func (e *ReleaseEnvironment) PersistProvenanceStatement(ctx context.Context, stm
 
 // GetReleaseID fetches a release and caches the releaseID in the environment
 func (e *ReleaseEnvironment) GetReleaseID(ctx context.Context, tagName string) (int64, error) {
-	owner := e.Context.RepositoryOwner
+	owner := repositoryOwner(e.Context.Repository)
 	repo := repositoryName(e.Context.Repository)
 
 	if e.releaseID == 0 {
@@ -173,6 +165,11 @@ func isEmptyDirectory(p string) (bool, error) {
 		return true, nil
 	}
 	return false, err
+}
+
+func repositoryOwner(repo string) string {
+	repoParts := strings.Split(repo, "/")
+	return repoParts[0]
 }
 
 func repositoryName(repo string) string {

@@ -29,16 +29,6 @@ func GitHubRelease() *cobra.Command {
 				return err
 			}
 
-			gh, err := o.GetGitHubContext()
-			if err != nil {
-				return err
-			}
-
-			runner, err := o.GetRunnerContext()
-			if err != nil {
-				return err
-			}
-
 			materials, err := o.GetExtraMaterials()
 			if err != nil {
 				return err
@@ -59,16 +49,20 @@ func GitHubRelease() *cobra.Command {
 				Writer:       cmd.OutOrStdout(),
 			}
 			rc := github.NewReleaseClient(tc)
-			env := github.NewReleaseEnvironment(*gh, *runner, tagName, rc)
+			env, err := github.NewEnvironment()
+			if err != nil {
+				return err
+			}
+			releaseEnv := github.NewReleaseEnvironment(env, tagName, rc)
 
-			stmt, err := env.GenerateProvenanceStatement(cmd.Context(), artifactPath, materials...)
+			stmt, err := releaseEnv.GenerateProvenanceStatement(cmd.Context(), artifactPath, materials...)
 			if err != nil {
 				return fmt.Errorf("failed to generate provenance: %w", err)
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Saving provenance to %s\n", outputPath)
 
-			return env.PersistProvenanceStatement(cmd.Context(), stmt, outputPath)
+			return releaseEnv.PersistProvenanceStatement(cmd.Context(), stmt, outputPath)
 		},
 	}
 

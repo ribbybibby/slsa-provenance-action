@@ -2,6 +2,7 @@ package github_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -231,17 +232,22 @@ func TestGenerateProvenance(t *testing.T) {
 	assert := assert.New(t)
 
 	ctx := context.Background()
-	os.Setenv("GITHUB_ACTIONS", "true")
 
 	repoURL := "https://github.com/philips-labs/slsa-provenance-action"
 
+	event := github.AnyEvent{}
+	err := json.Unmarshal([]byte(pushGitHubEvent), &event)
+	if !assert.NoError(err) {
+		return
+	}
+
 	gh := github.Context{
-		RunID:           "1029384756",
-		RepositoryOwner: "philips-labs",
-		Repository:      "philips-labs/slsa-provenance-action",
-		Event:           []byte(pushGitHubEvent),
-		EventName:       "push",
-		SHA:             "849fb987efc0c0fc72e26a38f63f0c00225132be",
+		Actions:    true,
+		RunID:      "1029384756",
+		Repository: "philips-labs/slsa-provenance-action",
+		Event:      event,
+		EventName:  "push",
+		SHA:        "849fb987efc0c0fc72e26a38f63f0c00225132be",
 	}
 	materials := []intoto.Item{
 		{URI: "git+" + repoURL, Digest: intoto.DigestSet{"sha1": gh.SHA}},
@@ -287,17 +293,22 @@ func TestGenerateProvenanceFromGitHubRelease(t *testing.T) {
 	assert := assert.New(t)
 
 	ctx := context.Background()
-	os.Setenv("GITHUB_ACTIONS", "true")
+
+	event := github.AnyEvent{}
+	err := json.Unmarshal([]byte(pushGitHubEvent), &event)
+	if !assert.NoError(err) {
+		return
+	}
 
 	repoURL := "https://github.com/philips-labs/slsa-provenance-action"
 
 	ghContext := github.Context{
-		RunID:           "1029384756",
-		RepositoryOwner: "philips-labs",
-		Repository:      "philips-labs/slsa-provenance-action",
-		Event:           []byte(pushGitHubEvent),
-		EventName:       "push",
-		SHA:             "849fb987efc0c0fc72e26a38f63f0c00225132be",
+		Actions:    true,
+		RunID:      "1029384756",
+		Repository: "philips-labs/slsa-provenance-action",
+		Event:      event,
+		EventName:  "push",
+		SHA:        "849fb987efc0c0fc72e26a38f63f0c00225132be",
 	}
 	materials := []intoto.Item{
 		{URI: "git+" + repoURL, Digest: intoto.DigestSet{"sha1": ghContext.SHA}},
@@ -330,7 +341,7 @@ func TestGenerateProvenanceFromGitHubRelease(t *testing.T) {
 		assert.NoError(err)
 	}()
 
-	env := github.NewReleaseEnvironment(ghContext, runner, version, client)
+	env := github.NewReleaseEnvironment(&github.Environment{&ghContext, &runner}, version, client)
 	stmt, err := env.GenerateProvenanceStatement(ctx, artifactPath)
 	if !assert.NoError(err) {
 		return
@@ -367,15 +378,20 @@ func TestGenerateProvenanceFromGitHubReleaseErrors(t *testing.T) {
 	assert := assert.New(t)
 
 	ctx := context.Background()
-	os.Setenv("GITHUB_ACTIONS", "true")
+
+	event := github.AnyEvent{}
+	err := json.Unmarshal([]byte(pushGitHubEvent), &event)
+	if !assert.NoError(err) {
+		return
+	}
 
 	ghContext := github.Context{
-		RunID:           "1029384756",
-		RepositoryOwner: "philips-labs",
-		Repository:      "philips-labs/slsa-provenance-action",
-		Event:           []byte(pushGitHubEvent),
-		EventName:       "push",
-		SHA:             "849fb987efc0c0fc72e26a38f63f0c00225132be",
+		Actions:    true,
+		RunID:      "1029384756",
+		Repository: "philips-labs/slsa-provenance-action",
+		Event:      event,
+		EventName:  "push",
+		SHA:        "849fb987efc0c0fc72e26a38f63f0c00225132be",
 	}
 
 	_, filename, _, _ := runtime.Caller(0)
@@ -384,7 +400,7 @@ func TestGenerateProvenanceFromGitHubReleaseErrors(t *testing.T) {
 
 	version := fmt.Sprintf("v0.0.0-rel-test-%d", time.Now().UnixNano())
 
-	env := github.NewReleaseEnvironment(ghContext, github.RunnerContext{}, version, client)
+	env := github.NewReleaseEnvironment(&github.Environment{&ghContext, &github.RunnerContext{}}, version, client)
 
 	stmt, err := env.GenerateProvenanceStatement(ctx, rootDir)
 	assert.EqualError(err, "artifactPath has to be an empty directory")

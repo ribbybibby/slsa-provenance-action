@@ -26,24 +26,14 @@ func Files() *cobra.Command {
 				return err
 			}
 
-			gh, err := o.GetGitHubContext()
-			if err != nil {
-				return err
-			}
-
-			runner, err := o.GetRunnerContext()
-			if err != nil {
-				return err
-			}
-
 			materials, err := o.GetExtraMaterials()
 			if err != nil {
 				return err
 			}
 
-			env := &github.Environment{
-				Context: gh,
-				Runner:  runner,
+			env, err := github.NewEnvironment()
+			if err != nil {
+				return err
 			}
 
 			stmt, err := env.GenerateProvenanceStatement(cmd.Context(), artifactPath, materials...)

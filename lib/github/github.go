@@ -2,6 +2,7 @@ package github
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 )
 
@@ -17,64 +18,90 @@ const (
 	PayloadContentType = "application/vnd.in-toto+json"
 )
 
-func builderID(repoURI string) string {
-	if os.Getenv("GITHUB_ACTIONS") == "true" {
-		return repoURI + HostedIDSuffix
-	}
-	return repoURI + SelfHostedIDSuffix
+// Environment is the environment from which provenance is generated.
+type Environment struct {
+	Context *Context
+	Runner  *RunnerContext
 }
 
-// Environment the environment from which provenance is generated.
-type Environment struct {
-	Context *Context       `json:"github,omitempty"`
-	Runner  *RunnerContext `json:"runner,omitempty"`
+// NewEnvironment retrieves the github and runner contexts from environment
+// variables
+func NewEnvironment() (*Environment, error) {
+	event, err := eventFromPath(os.Getenv("GITHUB_EVENT_PATH"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &Environment{
+		Context: &Context{
+			Action:     os.Getenv("GITHUB_ACTION"),
+			Actions:    (os.Getenv("GITHUB_ACTIONS") == "true"),
+			ActionPath: os.Getenv("GITHUB_ACTION_PATH"),
+			Actor:      os.Getenv("GITHUB_ACTOR"),
+			BaseRef:    os.Getenv("GITHUB_BASE_REF"),
+			Event:      event,
+			EventName:  os.Getenv("GITHUB_EVENT_NAME"),
+			EventPath:  os.Getenv("GITHUB_EVENT_PATH"),
+			HeadRef:    os.Getenv("GITHUB_HEAD_REF"),
+			Job:        os.Getenv("GITHUB_JOB"),
+			Ref:        os.Getenv("GITHUB_REF"),
+			Repository: os.Getenv("GITHUB_REPOSITORY"),
+			RunID:      os.Getenv("GITHUB_RUN_ID"),
+			RunNumber:  os.Getenv("GITHUB_RUN_NUMBER"),
+			SHA:        os.Getenv("GITHUB_SHA"),
+			Workflow:   os.Getenv("GITHUB_WORKFLOW"),
+		},
+		Runner: &RunnerContext{
+			Arch:      os.Getenv("RUNNER_ARCH"),
+			Name:      os.Getenv("RUNNER_NAME"),
+			OS:        os.Getenv("RUNNER_OS"),
+			Temp:      os.Getenv("RUNNER_TEMP"),
+			ToolCache: os.Getenv("RUNNER_TOOL_CACHE"),
+		},
+	}, nil
+}
+
+func (e *Environment) BuilderID() string {
+	repoURI := "https://github.com/" + e.Context.Repository
+
+	if e.Context.Actions {
+		return repoURI + HostedIDSuffix
+	}
+
+	return repoURI + SelfHostedIDSuffix
 }
 
 // Context holds all the information set on Github runners in relation to the job
 //
-// This information is retrieved from variables during workflow execution
+// This information is retrieved from environment variables
 type Context struct {
-	Action          string          `json:"action"`
-	ActionPath      string          `json:"action_path"`
-	Actor           string          `json:"actor"`
-	BaseRef         string          `json:"base_ref"`
-	Event           json.RawMessage `json:"event"`
-	EventName       string          `json:"event_name"`
-	EventPath       string          `json:"event_path"`
-	HeadRef         string          `json:"head_ref"`
-	Job             string          `json:"job"`
-	Ref             string          `json:"ref"`
-	Repository      string          `json:"repository"`
-	RepositoryOwner string          `json:"repository_owner"`
-	RunID           string          `json:"run_id"`
-	RunNumber       string          `json:"run_number"`
-	SHA             string          `json:"sha"`
-	Token           Token           `json:"token,omitempty"`
-	Workflow        string          `json:"workflow"`
-	Workspace       string          `json:"workspace"`
-}
-
-// Token the github token used during a workflow
-type Token string
-
-// UnmarshalText Unmarshals the token received from Github
-func (t *Token) UnmarshalText(text []byte) error {
-	*t = Token(text)
-	return nil
-}
-
-// MarshalText masks the token as *** when marshalling
-func (t Token) MarshalText() ([]byte, error) {
-	return []byte("***"), nil
+	Action     string
+	Actions    bool
+	ActionPath string
+	Actor      string
+	BaseRef    string
+	Event      AnyEvent
+	EventName  string
+	EventPath  string
+	HeadRef    string
+	Job        string
+	Ref        string
+	Repository string
+	RunID      string
+	RunNumber  string
+	SHA        string
+	Workflow   string
 }
 
 // RunnerContext holds information about the given Github Runner in which a workflow executes
 //
-// This information is retrieved from variables during workflow execution
+// This information is retrieved from environment variables
 type RunnerContext struct {
-	OS        string `json:"os"`
-	Temp      string `json:"temp"`
-	ToolCache string `json:"tool_cache"`
+	Arch      string
+	Name      string
+	OS        string
+	Temp      string
+	ToolCache string
 }
 
 // AnyEvent holds the inputs from a Github workflow
@@ -84,4 +111,18 @@ type RunnerContext struct {
 // exposes the user params at the key "input."
 type AnyEvent struct {
 	Inputs json.RawMessage `json:"inputs"`
+}
+
+func eventFromPath(path string) (AnyEvent, error) {
+	event := AnyEvent{}
+
+	f, err := ioutil.ReadFile(path)
+	if err != nil {
+		return event, err
+	}
+	if err := json.Unmarshal([]byte(f), &event); err != nil {
+		return event, err
+	}
+
+	return event, nil
 }

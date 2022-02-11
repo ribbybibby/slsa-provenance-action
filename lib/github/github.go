@@ -68,6 +68,11 @@ func (t Token) MarshalText() ([]byte, error) {
 	return []byte("***"), nil
 }
 
+// MarshalJSON masks the token as *** when marshalling
+func (t Token) MarshalJSON() ([]byte, error) {
+	return []byte("***"), nil
+}
+
 // RunnerContext holds information about the given Github Runner in which a workflow executes
 //
 // This information is retrieved from variables during workflow execution

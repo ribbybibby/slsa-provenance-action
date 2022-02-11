@@ -69,7 +69,7 @@ func WithMetadata(buildInvocationID string) StatementOption {
 }
 
 // WithInvocation sets the Predicate Invocation and Materials
-func WithInvocation(buildType, entryPoint string, environment json.RawMessage, parameters json.RawMessage, materials []Item) StatementOption {
+func WithInvocation(buildType, entryPoint string, environment interface{}, parameters json.RawMessage, materials []Item) StatementOption {
 	return func(s *Statement) {
 		s.Predicate.BuildType = buildType
 		s.Predicate.Invocation = Invocation{
@@ -143,7 +143,7 @@ type Metadata struct {
 type Invocation struct {
 	ConfigSource ConfigSource    `json:"configSource"`
 	Parameters   json.RawMessage `json:"parameters"`
-	Environment  json.RawMessage `json:"environment"`
+	Environment  interface{}     `json:"environment,omitempty"`
 }
 
 // ConfigSource Describes where the config file that kicked off the build came from.

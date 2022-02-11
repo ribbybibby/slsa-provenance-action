@@ -38,7 +38,7 @@ func (e *Environment) GenerateProvenanceStatement(ctx context.Context, subjecter
 		intoto.WithInvocation(
 			BuildType,
 			e.Context.Workflow,
-			nil,
+			e,
 			event.Inputs,
 			[]intoto.Item{
 				{URI: "git+" + repoURI, Digest: intoto.DigestSet{"sha1": e.Context.SHA}},
